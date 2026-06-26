@@ -142,3 +142,477 @@
     color: var(--color-foreground);
   }
 }
+
+@layer components {
+  .toonse-app {
+    --toonse-bg-main: oklch(0.13 0 0);
+    --toonse-bg-panel: oklch(0.17 0 0);
+    --toonse-bg-canvas: oklch(0.1 0 0);
+    --toonse-bg-hover: oklch(0.24 0 0);
+    --toonse-border: oklch(0.28 0 0);
+    --toonse-border-strong: oklch(0.36 0 0);
+    --toonse-text: oklch(0.92 0 0);
+    --toonse-muted: oklch(0.62 0 0);
+    --toonse-soft: oklch(0.78 0 0);
+    --toonse-accent: oklch(0.72 0.17 55);
+    --toonse-accent-strong: oklch(0.64 0.18 50);
+    --toonse-accent-soft: oklch(0.72 0.17 55 / 20%);
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--toonse-bg-main);
+    color: var(--toonse-text);
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    user-select: none;
+  }
+
+  .toonse-app.toonse-light {
+    --toonse-bg-main: oklch(0.95 0 0);
+    --toonse-bg-panel: oklch(1 0 0);
+    --toonse-bg-canvas: oklch(0.94 0 0);
+    --toonse-bg-hover: oklch(0.9 0 0);
+    --toonse-border: oklch(0.86 0 0);
+    --toonse-border-strong: oklch(0.76 0 0);
+    --toonse-text: oklch(0.22 0 0);
+    --toonse-muted: oklch(0.48 0 0);
+    --toonse-soft: oklch(0.38 0 0);
+  }
+
+  .toonse-header,
+  .toonse-timelineControls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-color: var(--toonse-border);
+    background: var(--toonse-bg-panel);
+  }
+
+  .toonse-header {
+    z-index: 30;
+    height: 3rem;
+    flex-shrink: 0;
+    border-bottom-width: 1px;
+    padding: 0 1rem;
+  }
+
+  .toonse-headGroup,
+  .toonse-rowButtons,
+  .toonse-timelineControls,
+  .toonse-panelHeader span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .toonse-header h1 {
+    color: var(--toonse-accent);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .toonse-header h1 span {
+    color: var(--toonse-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+  }
+
+  .toonse-header button,
+  .toonse-rowButtons button,
+  .toonse-upload,
+  .toonse-timeline button,
+  .toonse-layer button {
+    display: inline-flex;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border-radius: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    color: var(--toonse-soft);
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, transform 120ms ease;
+  }
+
+  .toonse-header button:hover,
+  .toonse-rowButtons button:hover,
+  .toonse-upload:hover,
+  .toonse-timeline button:hover,
+  .toonse-layer button:hover {
+    background: var(--toonse-bg-hover);
+    color: var(--toonse-text);
+  }
+
+  .toonse-export,
+  .toonse-timelineControls button:first-child {
+    background: var(--toonse-accent);
+    color: oklch(1 0 0);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .toonse-export:hover,
+  .toonse-timelineControls button:first-child:hover {
+    background: var(--toonse-accent-strong);
+    color: oklch(1 0 0);
+  }
+
+  .toonse-workspace {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .toonse-toolbar {
+    z-index: 20;
+    display: flex;
+    width: 3.5rem;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    overflow-y: auto;
+    border-right: 1px solid var(--toonse-border);
+    background: var(--toonse-bg-panel);
+    padding: 0.75rem 0.4rem;
+  }
+
+  .toonse-tool {
+    display: grid;
+    width: 2.55rem;
+    height: 2.55rem;
+    flex-shrink: 0;
+    place-items: center;
+    border: 2px solid transparent;
+    border-radius: 0.45rem;
+    color: var(--toonse-muted);
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  }
+
+  .toonse-tool:hover,
+  .toonse-tool.is-active {
+    background: var(--toonse-bg-hover);
+    color: var(--toonse-accent);
+  }
+
+  .toonse-tool.is-active {
+    border-color: var(--toonse-accent);
+    box-shadow: 0 0 18px var(--toonse-accent-soft);
+  }
+
+  .toonse-leftPanel,
+  .toonse-rightPanel {
+    display: flex;
+    min-height: 0;
+    flex-shrink: 0;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--toonse-bg-panel);
+  }
+
+  .toonse-leftPanel {
+    width: 16rem;
+    border-right: 1px solid var(--toonse-border);
+  }
+
+  .toonse-rightPanel {
+    width: 18rem;
+    border-left: 1px solid var(--toonse-border);
+  }
+
+  .toonse-panelHeader {
+    display: flex;
+    height: 2.75rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--toonse-border);
+    padding: 0 0.85rem;
+    color: var(--toonse-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .toonse-panelHeader strong {
+    border-radius: 999px;
+    background: var(--toonse-bg-hover);
+    padding: 0.08rem 0.45rem;
+    color: var(--toonse-soft);
+  }
+
+  .toonse-colorBlock,
+  .toonse-properties {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 0.85rem;
+  }
+
+  .toonse-colorBlock {
+    border-bottom: 1px solid var(--toonse-border);
+  }
+
+  .toonse-colorBlock label,
+  .toonse-textField,
+  .toonse-numberField,
+  .toonse-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: var(--toonse-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .toonse-colorBlock input[type="color"] {
+    height: 2rem;
+    width: 100%;
+    cursor: pointer;
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .toonse-rowButtons button,
+  .toonse-upload,
+  .toonse-timelineControls button {
+    border: 1px solid var(--toonse-border-strong);
+    background: var(--toonse-bg-hover);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .toonse-layerList,
+  .toonse-properties {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .toonse-layerList {
+    padding: 0.65rem;
+  }
+
+  .toonse-layer {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 0.45rem;
+    padding: 0.35rem 0.45rem;
+    color: var(--toonse-soft);
+    font-size: 0.76rem;
+  }
+
+  .toonse-layer:hover,
+  .toonse-layer.is-selected {
+    background: var(--toonse-bg-hover);
+  }
+
+  .toonse-layer.is-selected {
+    border-color: var(--toonse-accent);
+    color: var(--toonse-text);
+  }
+
+  .toonse-swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px var(--toonse-border-strong);
+  }
+
+  .toonse-layerName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .toonse-layer small {
+    color: var(--toonse-muted);
+    font-size: 0.62rem;
+  }
+
+  .toonse-canvasHost {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    background: var(--toonse-bg-canvas);
+    touch-action: none;
+  }
+
+  .toonse-grid {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(var(--toonse-border-strong) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.14;
+  }
+
+  .toonse-canvas {
+    position: absolute;
+    inset: 0;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .toonse-grid2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .toonse-textField input,
+  .toonse-numberField input {
+    width: 100%;
+    border: 1px solid var(--toonse-border);
+    border-radius: 0.35rem;
+    background: var(--toonse-bg-canvas);
+    padding: 0.45rem 0.5rem;
+    color: var(--toonse-text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    outline: none;
+  }
+
+  .toonse-textField input:focus,
+  .toonse-numberField input:focus {
+    border-color: var(--toonse-accent);
+  }
+
+  .toonse-slider span {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .toonse-slider strong {
+    color: var(--toonse-accent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .toonse-slider input {
+    width: 100%;
+    accent-color: var(--toonse-accent);
+  }
+
+  .toonse-boneList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    border-top: 1px solid var(--toonse-border);
+    padding-top: 0.75rem;
+    color: var(--toonse-muted);
+    font-size: 0.7rem;
+  }
+
+  .toonse-boneList strong {
+    color: var(--toonse-soft);
+    text-transform: uppercase;
+  }
+
+  .toonse-empty {
+    margin: 1rem;
+    color: var(--toonse-muted);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    text-align: center;
+  }
+
+  .toonse-timeline {
+    z-index: 30;
+    display: flex;
+    height: 10rem;
+    flex-shrink: 0;
+    flex-direction: column;
+    border-top: 1px solid var(--toonse-border);
+    background: var(--toonse-bg-panel);
+  }
+
+  .toonse-timelineControls {
+    height: 2.75rem;
+    justify-content: flex-start;
+    gap: 0.6rem;
+    border-bottom-width: 1px;
+    padding: 0 1rem;
+  }
+
+  .toonse-timelineControls button.is-active {
+    border-color: var(--toonse-accent);
+    color: var(--toonse-accent);
+  }
+
+  .toonse-frames {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 0.6rem;
+    overflow-x: auto;
+    padding: 0.9rem 1rem;
+  }
+
+  .toonse-frameWrap {
+    position: relative;
+    flex: 0 0 auto;
+  }
+
+  .toonse-frame,
+  .toonse-addFrame {
+    width: 3rem;
+    height: 4rem;
+    border: 1px solid var(--toonse-border);
+    border-radius: 0.45rem;
+    background: var(--toonse-bg-canvas);
+    color: var(--toonse-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .toonse-frame.is-active {
+    border-color: var(--toonse-accent);
+    background: var(--toonse-bg-hover);
+    color: var(--toonse-accent);
+    box-shadow: 0 0 16px var(--toonse-accent-soft);
+  }
+
+  .toonse-deleteFrame {
+    position: absolute;
+    top: -0.45rem;
+    right: -0.45rem;
+    width: 1.3rem;
+    min-height: 1.3rem;
+    border-radius: 999px;
+    background: oklch(0.58 0.23 25);
+    color: oklch(1 0 0);
+    padding: 0;
+  }
+
+  .toonse-addFrame {
+    border-style: dashed;
+  }
+
+  @media (max-width: 760px) {
+    .toonse-leftPanel,
+    .toonse-rightPanel {
+      width: 12.5rem;
+    }
+
+    .toonse-header {
+      padding: 0 0.5rem;
+    }
+
+    .toonse-header h1 span {
+      display: none;
+    }
+
+    .toonse-timeline {
+      height: 8rem;
+    }
+  }
+}

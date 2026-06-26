@@ -1,29 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ToonseApp } from "../components/toonse/ToonseApp";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "Toonse Pro Drawing Studio" },
+      { name: "description", content: "A canvas drawing studio with smooth transforms, fills, frames, and bone rigging." },
+      { property: "og:title", content: "Toonse Pro Drawing Studio" },
+      { property: "og:description", content: "Draw, fill, deform, rig with bones, animate frames, and export from a white canvas." },
     ],
   }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  return <ToonseApp />;
 }
