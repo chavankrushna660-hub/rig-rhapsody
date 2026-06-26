@@ -479,7 +479,9 @@ export class Engine {
     }
 
     if (this.dragAction === "bone" && this.pendingBone) {
-      const childId = this.hitTestTop(this.pendingBone.current, this.pendingBone.parentId);
+      const childId =
+        this.hitTestTop(this.pendingBone.current, this.pendingBone.parentId) ??
+        this.nearestObjectToPoint(this.pendingBone.current, this.pendingBone.parentId, 120);
       if (childId) {
         const childAnchor = this.screenToLocal(childId, this.pendingBone.current) ?? { x: 0, y: 0 };
         this.addBone(this.pendingBone.parentId, childId, this.pendingBone.anchor, childAnchor);
@@ -957,6 +959,25 @@ export class Engine {
       .filter((obj) => obj.id !== excludeId)
       .sort((a, b) => b.zIndex - a.zIndex);
     return sorted.find((obj) => this.hitTestObject(obj.id, pt))?.id ?? null;
+  }
+
+  private nearestObjectToPoint(pt: Point, excludeId?: string, maxDistance = 90) {
+    let bestId: string | null = null;
+    let bestDistance = maxDistance;
+    for (const obj of Object.values(this.objects)) {
+      if (obj.id === excludeId) continue;
+      const local = this.screenToLocal(obj.id, pt);
+      if (!local) continue;
+      const b = this.getLocalBounds(obj);
+      const dx = Math.max(b.minX - local.x, 0, local.x - b.maxX);
+      const dy = Math.max(b.minY - local.y, 0, local.y - b.maxY);
+      const distance = Math.hypot(dx, dy);
+      if (distance <= bestDistance) {
+        bestDistance = distance;
+        bestId = obj.id;
+      }
+    }
+    return bestId;
   }
 
   private hitTestObject(id: string, pt: Point) {
