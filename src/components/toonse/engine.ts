@@ -921,10 +921,11 @@ export class Engine {
   getHandles(id: string): Record<HandleName, Point> {
     const obj = this.objects[id];
     const b = this.getLocalBounds(obj);
-    const top = b.minY;
-    const bottom = b.maxY;
-    const left = b.minX;
-    const right = b.maxX;
+    const pad = Math.max(28, Math.min(84, Math.max(b.width, b.height) * 0.18));
+    const top = b.minY - pad;
+    const bottom = b.maxY + pad;
+    const left = b.minX - pad;
+    const right = b.maxX + pad;
     const cx = b.cx;
     const cy = b.cy;
     const map = (p: Point) => this.localToScreen(id, p) ?? p;
