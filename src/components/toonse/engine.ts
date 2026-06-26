@@ -362,7 +362,7 @@ export class Engine {
     }
 
     if (this.tool === "bone") {
-      const hitId = this.hitTestTop(pt);
+      const hitId = this.hitTestTop(pt) ?? this.nearestObjectToPoint(pt, undefined, 160);
       if (hitId) {
         const anchor = this.screenToLocal(hitId, pt) ?? { x: 0, y: 0 };
         this.pendingBone = { parentId: hitId, anchor, start: pt, current: pt };
@@ -481,7 +481,7 @@ export class Engine {
     if (this.dragAction === "bone" && this.pendingBone) {
       const childId =
         this.hitTestTop(this.pendingBone.current, this.pendingBone.parentId) ??
-        this.nearestObjectToPoint(this.pendingBone.current, this.pendingBone.parentId, 120);
+        this.nearestObjectToPoint(this.pendingBone.current, this.pendingBone.parentId, 180);
       if (childId) {
         const childAnchor = this.screenToLocal(childId, this.pendingBone.current) ?? { x: 0, y: 0 };
         this.addBone(this.pendingBone.parentId, childId, this.pendingBone.anchor, childAnchor);
