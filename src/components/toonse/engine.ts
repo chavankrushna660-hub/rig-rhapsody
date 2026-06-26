@@ -130,6 +130,9 @@ export class Engine {
   setCanvas(canvas: HTMLCanvasElement, host?: HTMLElement | null) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false });
+    if (typeof window !== "undefined") {
+      (window as unknown as { __TOONSE_ENGINE__?: Engine }).__TOONSE_ENGINE__ = this;
+    }
     this.resizeCanvas(host ?? canvas.parentElement);
   }
 
