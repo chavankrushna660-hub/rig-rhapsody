@@ -511,13 +511,13 @@ export class Engine {
 
   private startSelectDrag(pt: Point) {
     if (this.selectedId) {
+      if (this.hitTestObject(this.selectedId, pt)) {
+        this.prepareTransformDrag("move", pt);
+        return;
+      }
       const handle = this.hitHandle(this.selectedId, pt);
       if (handle) {
         this.prepareTransformDrag(handle, pt);
-        return;
-      }
-      if (this.hitTestObject(this.selectedId, pt)) {
-        this.prepareTransformDrag("move", pt);
         return;
       }
       return;
