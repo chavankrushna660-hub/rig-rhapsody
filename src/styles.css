@@ -412,6 +412,52 @@
     font-size: 0.76rem;
   }
 
+  .toonse-groupBlock {
+    margin-bottom: 0.45rem;
+  }
+
+  .toonse-group,
+  .toonse-boneLayer {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.35rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 0.45rem;
+    padding: 0.35rem 0.45rem;
+    color: var(--toonse-soft);
+    font-size: 0.74rem;
+  }
+
+  .toonse-group button {
+    display: grid;
+    width: 1.35rem;
+    min-height: 1.35rem;
+    place-items: center;
+    padding: 0;
+  }
+
+  .toonse-group:hover,
+  .toonse-group.is-selected,
+  .toonse-boneLayer:hover,
+  .toonse-boneLayer.is-selected {
+    background: var(--toonse-bg-hover);
+  }
+
+  .toonse-group.is-selected,
+  .toonse-boneLayer.is-selected {
+    border-color: oklch(0.66 0.18 235);
+    color: var(--toonse-text);
+  }
+
+  .toonse-groupChildren {
+    margin-left: 1rem;
+    border-left: 1px solid var(--toonse-border);
+    padding-left: 0.45rem;
+  }
+
   .toonse-layer:hover,
   .toonse-layer.is-selected {
     background: var(--toonse-bg-hover);
@@ -516,6 +562,53 @@
   .toonse-boneList strong {
     color: var(--toonse-soft);
     text-transform: uppercase;
+  }
+
+  .toonse-boneCard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.32rem;
+    border: 1px solid var(--toonse-border);
+    border-radius: 0.45rem;
+    background: var(--toonse-bg-canvas);
+    padding: 0.75rem;
+    color: var(--toonse-muted);
+    font-size: 0.72rem;
+  }
+
+  .toonse-boneCard strong {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--toonse-accent);
+    font-size: 0.78rem;
+  }
+
+  .toonse-checkRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--toonse-soft);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .toonse-checkRow input {
+    accent-color: var(--toonse-accent);
+  }
+
+  .toonse-boneLink {
+    cursor: pointer;
+    border-radius: 0.35rem;
+    padding: 0.3rem 0.4rem;
+    text-align: left;
+    color: var(--toonse-soft);
+  }
+
+  .toonse-boneLink:hover {
+    background: var(--toonse-bg-hover);
+    color: var(--toonse-accent);
   }
 
   .toonse-empty {
