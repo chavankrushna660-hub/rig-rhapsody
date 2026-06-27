@@ -137,6 +137,32 @@ export function RightPanel({ isOpen }: { isOpen: boolean }) {
             ))}
           </div>
         </div>
+      ) : engine.tool === "bone" ? (
+        <div className="toonse-properties">
+          <div className="toonse-boneCard">
+            <strong>
+              <Bone size={14} /> Bone Tool Options
+            </strong>
+            <span>Ready to draw bone from one drawing to another.</span>
+          </div>
+          <label className="toonse-colorInput">
+            Bone Color
+            <input type="color" value={engine.boneColor} onChange={(event) => engine.setBoneColor(event.target.value)} />
+          </label>
+          <Slider label="Bone Thickness" value={engine.boneThickness} min={1} max={14} onChange={(value) => engine.setBoneThickness(value)} />
+          <label className="toonse-checkRow">
+            <input type="checkbox" checked={engine.showBones} onChange={(event) => engine.setShowBones(event.target.checked)} />
+            Show bones
+          </label>
+          <label className="toonse-checkRow">
+            <input type="checkbox" checked={engine.autoGroupBones} onChange={(event) => engine.setAutoGroupBones(event.target.checked)} />
+            Auto-group
+          </label>
+          <label className="toonse-checkRow">
+            <input type="checkbox" checked={engine.defaultAllowDetach} onChange={(event) => engine.setDefaultAllowDetach(event.target.checked)} />
+            Allow detachments
+          </label>
+        </div>
       ) : obj && transform && bounds ? (
         <div className="toonse-properties">
           <label className="toonse-textField">
