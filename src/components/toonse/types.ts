@@ -38,6 +38,12 @@ export type Frame = {
   transforms: Record<string, Transform>;
 };
 
+export type BoneEndpoint = {
+  drawingId: string;
+  localX: number;
+  localY: number;
+};
+
 export type Bone = {
   id: string;
   name: string;
@@ -45,6 +51,26 @@ export type Bone = {
   childId: string;
   parentAnchor: Point;
   childAnchor: Point;
+  start: BoneEndpoint;
+  end: BoneEndpoint;
+  lockedDistance: number;
+  allowDetach: boolean;
+  color: string;
+  thickness: number;
+  visible: boolean;
+  groupId: string;
+  createdAt: number;
+};
+
+export type RigGroup = {
+  id: string;
+  name: string;
+  memberIds: string[];
+  boneIds: string[];
+  transform: Pick<Transform, "x" | "y" | "rotation" | "scaleX" | "scaleY">;
+  expanded: boolean;
+  visible: boolean;
+  locked: boolean;
 };
 
 export type ToolType =
