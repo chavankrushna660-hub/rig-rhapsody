@@ -224,6 +224,32 @@ export class Engine {
     this.render();
   }
 
+  setShowBones(showBones: boolean) {
+    this.showBones = showBones;
+    this.notify();
+    this.render();
+  }
+
+  setBoneColor(color: string) {
+    this.boneColor = color;
+    this.notify();
+  }
+
+  setBoneThickness(thickness: number) {
+    this.boneThickness = clamp(thickness, 1, 14);
+    this.notify();
+  }
+
+  setAutoGroupBones(autoGroup: boolean) {
+    this.autoGroupBones = autoGroup;
+    this.notify();
+  }
+
+  setDefaultAllowDetach(allowDetach: boolean) {
+    this.defaultAllowDetach = allowDetach;
+    this.notify();
+  }
+
   addFrame() {
     const prevTransforms = this.frames[this.currentFrameIdx]?.transforms ?? {};
     this.frames.splice(this.currentFrameIdx + 1, 0, {
