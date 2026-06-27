@@ -357,6 +357,7 @@
   }
 
   .toonse-colorBlock label,
+  .toonse-colorInput,
   .toonse-textField,
   .toonse-numberField,
   .toonse-slider {
@@ -370,6 +371,15 @@
   }
 
   .toonse-colorBlock input[type="color"] {
+    height: 2rem;
+    width: 100%;
+    cursor: pointer;
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .toonse-colorInput input[type="color"] {
     height: 2rem;
     width: 100%;
     cursor: pointer;
