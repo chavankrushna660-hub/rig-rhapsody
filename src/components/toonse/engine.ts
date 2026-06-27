@@ -1,5 +1,5 @@
 import type React from "react";
-import type { Bone, DrawingObject, Frame, HandleName, Point, ToolType, Transform } from "./types";
+import type { Bone, DrawingObject, Frame, HandleName, Point, RigGroup, ToolType, Transform } from "./types";
 
 const genId = () => Math.random().toString(36).slice(2, 9);
 
@@ -85,10 +85,13 @@ export class Engine {
 
   objects: Record<string, DrawingObject> = {};
   bones: Bone[] = [];
+  rigGroups: RigGroup[] = [];
   frames: Frame[] = [{ id: genId(), transforms: {} }];
   currentFrameIdx = 0;
 
   selectedId: string | null = null;
+  selectedGroupId: string | null = null;
+  selectedBoneId: string | null = null;
   tool: ToolType = "brush";
   onionSkin = true;
   autoFrames = false;
@@ -96,6 +99,11 @@ export class Engine {
   currentColor = "#f27d26";
   currentWidth = 6;
   canvasColor = "#ffffff";
+  showBones = true;
+  boneColor = "#2196f3";
+  boneThickness = 4;
+  autoGroupBones = true;
+  defaultAllowDetach = false;
 
   listeners = new Set<() => void>();
   updateCount = 0;
@@ -114,6 +122,18 @@ export class Engine {
   curveOriginalPoints: Point[] = [];
   curveStartLocal: Point | null = null;
   pendingBone: { parentId: string; anchor: Point; start: Point; current: Point } | null = null;
+  pendingBoneConfirm: {
+    startId: string;
+    endId: string;
+    startAnchor: Point;
+    endAnchor: Point;
+    startWorld: Point;
+    endWorld: Point;
+    lockedDistance: number;
+    allowDetach: boolean;
+    autoGroup: boolean;
+    groupName: string;
+  } | null = null;
   autoFrameCreatedForGesture = false;
   playInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -164,8 +184,33 @@ export class Engine {
     } else {
       this.selectedId = id;
     }
+    this.selectedGroupId = null;
+    this.selectedBoneId = null;
     this.notify();
     this.render();
+  }
+
+  selectGroup(id: string | null) {
+    this.selectedGroupId = this.selectedGroupId === id ? null : id;
+    this.selectedId = null;
+    this.selectedBoneId = null;
+    this.notify();
+    this.render();
+  }
+
+  selectBone(id: string | null) {
+    this.selectedBoneId = this.selectedBoneId === id ? null : id;
+    this.selectedGroupId = null;
+    this.selectedId = null;
+    this.notify();
+    this.render();
+  }
+
+  toggleGroupExpanded(id: string) {
+    const group = this.rigGroups.find((item) => item.id === id);
+    if (!group) return;
+    group.expanded = !group.expanded;
+    this.notify();
   }
 
   setCurrentColor(color: string) {
@@ -216,9 +261,29 @@ export class Engine {
 
   deleteObject(id: string) {
     delete this.objects[id];
-    this.bones = this.bones.filter((bone) => bone.parentId !== id && bone.childId !== id);
+    const deletedBoneIds = new Set(this.bones.filter((bone) => bone.parentId === id || bone.childId === id).map((bone) => bone.id));
+    this.bones = this.bones.filter((bone) => !deletedBoneIds.has(bone.id));
+    this.rigGroups = this.rigGroups
+      .map((group) => ({
+        ...group,
+        memberIds: group.memberIds.filter((memberId) => memberId !== id),
+        boneIds: group.boneIds.filter((boneId) => !deletedBoneIds.has(boneId)),
+      }))
+      .filter((group) => group.memberIds.length > 0 || group.boneIds.length > 0);
     for (const frame of this.frames) delete frame.transforms[id];
     if (this.selectedId === id) this.selectedId = null;
+    if (this.selectedGroupId && !this.rigGroups.some((group) => group.id === this.selectedGroupId)) this.selectedGroupId = null;
+    if (this.selectedBoneId && deletedBoneIds.has(this.selectedBoneId)) this.selectedBoneId = null;
+    this.notify();
+    this.render();
+  }
+
+  deleteBone(id: string) {
+    this.bones = this.bones.filter((bone) => bone.id !== id);
+    this.rigGroups = this.rigGroups
+      .map((group) => ({ ...group, boneIds: group.boneIds.filter((boneId) => boneId !== id) }))
+      .filter((group) => group.memberIds.length > 0 || group.boneIds.length > 0);
+    if (this.selectedBoneId === id) this.selectedBoneId = null;
     this.notify();
     this.render();
   }
@@ -259,8 +324,80 @@ export class Engine {
     if (!this.selectedId) return;
     const t = this.getFrameTransform(this.selectedId);
     if (!t) return;
+    if ((prop === "x" || prop === "y") && this.hasLockedIncomingBone(this.selectedId)) {
+      this.render();
+      return;
+    }
     if (prop === "scaleX" || prop === "scaleY") value = value === 0 ? 0.01 : value;
     t[prop] = value;
+    this.refreshAllowedDetachDistances(this.selectedId);
+    this.notify();
+    this.render();
+  }
+
+  updateGroupTransform(prop: "x" | "y" | "rotation" | "scaleX" | "scaleY", value: number) {
+    if (!this.selectedGroupId) return;
+    const group = this.rigGroups.find((item) => item.id === this.selectedGroupId);
+    if (!group) return;
+    const prev = group.transform[prop];
+    group.transform[prop] = prop === "scaleX" || prop === "scaleY" ? (value === 0 ? 0.01 : value) : value;
+    const roots = this.getGroupRootIds(group);
+    if (prop === "x" || prop === "y") {
+      const delta = group.transform[prop] - prev;
+      for (const id of roots) {
+        const t = this.getFrameTransform(id);
+        t[prop] += delta;
+      }
+    } else if (prop === "rotation") {
+      const delta = group.transform.rotation - prev;
+      for (const id of roots) this.getFrameTransform(id).rotation += delta;
+    } else {
+      const factor = prev ? group.transform[prop] / prev : group.transform[prop];
+      for (const id of roots) this.getFrameTransform(id)[prop] *= factor;
+    }
+    this.notify();
+    this.render();
+  }
+
+  setBoneAllowDetach(id: string, allowDetach: boolean) {
+    const bone = this.bones.find((item) => item.id === id);
+    if (!bone) return;
+    bone.allowDetach = allowDetach;
+    if (!allowDetach) bone.lockedDistance = this.getBoneCurrentDistance(bone.id);
+    this.notify();
+    this.render();
+  }
+
+  setPendingBoneAllowDetach(allowDetach: boolean) {
+    if (!this.pendingBoneConfirm) return;
+    this.pendingBoneConfirm.allowDetach = allowDetach;
+    this.notify();
+  }
+
+  setPendingBoneAutoGroup(autoGroup: boolean) {
+    if (!this.pendingBoneConfirm) return;
+    this.pendingBoneConfirm.autoGroup = autoGroup;
+    this.notify();
+  }
+
+  setPendingBoneGroupName(groupName: string) {
+    if (!this.pendingBoneConfirm) return;
+    this.pendingBoneConfirm.groupName = groupName;
+    this.notify();
+  }
+
+  confirmPendingBone() {
+    if (!this.pendingBoneConfirm) return;
+    const pending = this.pendingBoneConfirm;
+    this.addBone(pending.startId, pending.endId, pending.startAnchor, pending.endAnchor, pending.allowDetach, pending.autoGroup, pending.groupName);
+    this.pendingBoneConfirm = null;
+    this.notify();
+    this.render();
+  }
+
+  cancelPendingBone() {
+    this.pendingBoneConfirm = null;
+    this.pendingBone = null;
     this.notify();
     this.render();
   }
@@ -369,8 +506,11 @@ export class Engine {
       if (hitId) {
         const anchor = this.screenToLocal(hitId, pt) ?? { x: 0, y: 0 };
         this.pendingBone = { parentId: hitId, anchor, start: pt, current: pt };
+        this.pendingBoneConfirm = null;
         this.dragAction = "bone";
         this.selectedId = hitId;
+        this.selectedGroupId = null;
+        this.selectedBoneId = null;
         this.notify();
         this.render();
       }
@@ -487,7 +627,18 @@ export class Engine {
         this.nearestObjectToPoint(this.pendingBone.current, this.pendingBone.parentId, 180);
       if (childId) {
         const childAnchor = this.screenToLocal(childId, this.pendingBone.current) ?? { x: 0, y: 0 };
-        this.addBone(this.pendingBone.parentId, childId, this.pendingBone.anchor, childAnchor);
+        this.pendingBoneConfirm = {
+          startId: this.pendingBone.parentId,
+          endId: childId,
+          startAnchor: this.pendingBone.anchor,
+          endAnchor: childAnchor,
+          startWorld: this.pendingBone.start,
+          endWorld: this.pendingBone.current,
+          lockedDistance: dist(this.pendingBone.start, this.pendingBone.current),
+          allowDetach: this.defaultAllowDetach,
+          autoGroup: this.autoGroupBones,
+          groupName: `group_${this.rigGroups.length + 1}`,
+        };
       }
       this.pendingBone = null;
     }
@@ -555,11 +706,16 @@ export class Engine {
     const action = this.dragAction;
 
     if (action === "move") {
+      if (this.hasLockedIncomingBone(this.selectedId)) {
+        this.render();
+        return;
+      }
       const inv = this.initialParentInverse ?? new DOMMatrix();
       const start = new DOMPoint(this.dragStartPt.x, this.dragStartPt.y).matrixTransform(inv);
       const now = new DOMPoint(pt.x, pt.y).matrixTransform(inv);
       t.x = this.initialTransform.x + now.x - start.x;
       t.y = this.initialTransform.y + now.y - start.y;
+      this.refreshAllowedDetachDistances(this.selectedId);
       this.notify();
       this.render();
       return;
@@ -656,9 +812,20 @@ export class Engine {
     }
   }
 
-  private addBone(parentId: string, childId: string, parentAnchor: Point, childAnchor: Point) {
-    if (parentId === childId || this.wouldCreateCycle(parentId, childId)) return;
+  private addBone(startId: string, endId: string, startAnchor: Point, endAnchor: Point, allowDetach = false, autoGroup = true, groupName?: string) {
+    if (startId === endId || !this.objects[startId] || !this.objects[endId]) return;
+    const startArea = this.getLocalBounds(this.objects[startId]).width * this.getLocalBounds(this.objects[startId]).height;
+    const endArea = this.getLocalBounds(this.objects[endId]).width * this.getLocalBounds(this.objects[endId]).height;
+    const parentId = endArea >= startArea ? endId : startId;
+    const childId = parentId === startId ? endId : startId;
+    const parentAnchor = parentId === startId ? startAnchor : endAnchor;
+    const childAnchor = childId === startId ? startAnchor : endAnchor;
+    if (this.wouldCreateCycle(parentId, childId)) return;
     if (this.getParentId(childId)) return;
+    const parentWorld = this.localToScreen(parentId, parentAnchor);
+    const childWorld = this.localToScreen(childId, childAnchor);
+    const lockedDistance = parentWorld && childWorld ? dist(parentWorld, childWorld) : 0;
+    const groupId = autoGroup ? this.ensureRigGroup(startId, endId, groupName) : "";
     const bone: Bone = {
       id: genId(),
       name: `${this.objects[parentId].name} → ${this.objects[childId].name}`,
@@ -666,6 +833,15 @@ export class Engine {
       childId,
       parentAnchor,
       childAnchor,
+      start: { drawingId: startId, localX: startAnchor.x, localY: startAnchor.y },
+      end: { drawingId: endId, localX: endAnchor.x, localY: endAnchor.y },
+      lockedDistance,
+      allowDetach,
+      color: this.boneColor,
+      thickness: this.boneThickness,
+      visible: true,
+      groupId,
+      createdAt: Date.now(),
     };
     for (let i = 0; i < this.frames.length; i++) {
       const parentWorld = this.getEffectiveMatrix(parentId, i);
@@ -676,10 +852,45 @@ export class Engine {
       this.frames[i].transforms[childId].pivotY = childAnchor.y;
     }
     this.bones.push(bone);
+    if (groupId) {
+      const group = this.rigGroups.find((item) => item.id === groupId);
+      if (group && !group.boneIds.includes(bone.id)) group.boneIds.push(bone.id);
+    }
     this.selectedId = childId;
+    this.selectedGroupId = null;
+    this.selectedBoneId = bone.id;
     this.tool = "select";
     this.notify();
     this.render();
+  }
+
+  private ensureRigGroup(aId: string, bId: string, preferredName?: string) {
+    const existingGroups = this.rigGroups.filter((group) => group.memberIds.includes(aId) || group.memberIds.includes(bId));
+    if (!existingGroups.length) {
+      const group: RigGroup = {
+        id: genId(),
+        name: preferredName?.trim() || `group_${this.rigGroups.length + 1}`,
+        memberIds: [aId, bId],
+        boneIds: [],
+        transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+        expanded: true,
+        visible: true,
+        locked: false,
+      };
+      this.rigGroups.push(group);
+      return group.id;
+    }
+    const primary = existingGroups[0];
+    const members = new Set<string>([...primary.memberIds, aId, bId]);
+    const boneIds = new Set<string>(primary.boneIds);
+    for (const group of existingGroups.slice(1)) {
+      group.memberIds.forEach((id) => members.add(id));
+      group.boneIds.forEach((id) => boneIds.add(id));
+    }
+    primary.memberIds = [...members];
+    primary.boneIds = [...boneIds];
+    this.rigGroups = this.rigGroups.filter((group) => group === primary || !existingGroups.includes(group));
+    return primary.id;
   }
 
   private wouldCreateCycle(parentId: string, childId: string) {
@@ -697,6 +908,26 @@ export class Engine {
 
   getChildren(id: string) {
     return this.bones.filter((bone) => bone.parentId === id).map((bone) => bone.childId);
+  }
+
+  getConnectedBones(id: string) {
+    return this.bones.filter((bone) => bone.parentId === id || bone.childId === id || bone.start.drawingId === id || bone.end.drawingId === id);
+  }
+
+  getBoneCurrentDistance(id: string) {
+    const bone = this.bones.find((item) => item.id === id);
+    if (!bone) return 0;
+    const parent = this.localToScreen(bone.parentId, bone.parentAnchor);
+    const child = this.localToScreen(bone.childId, bone.childAnchor);
+    return parent && child ? dist(parent, child) : 0;
+  }
+
+  getSelectedGroup() {
+    return this.rigGroups.find((group) => group.id === this.selectedGroupId) ?? null;
+  }
+
+  getSelectedBone() {
+    return this.bones.find((bone) => bone.id === this.selectedBoneId) ?? null;
   }
 
   getFrameTransform(id: string, frameIdx = this.currentFrameIdx): Transform {
@@ -717,6 +948,10 @@ export class Engine {
     m.scaleSelf(t.scaleX * (Math.abs(flipScaleX) < 0.04 ? 0.04 : flipScaleX), t.scaleY * (Math.abs(flipScaleY) < 0.04 ? 0.04 : flipScaleY));
     m.translateSelf(-t.pivotX, -t.pivotY);
     return m;
+  }
+
+  private localMatrixWithoutTranslation(t: Transform) {
+    return this.localMatrix({ ...t, x: 0, y: 0 });
   }
 
   getEffectiveMatrix(id: string, frameIdx = this.currentFrameIdx, seen = new Set<string>()): DOMMatrix {
@@ -796,6 +1031,7 @@ export class Engine {
 
   render() {
     if (!this.ctx || !this.canvas) return;
+    this.enforceBoneConstraints();
     const ctx = this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
@@ -810,8 +1046,10 @@ export class Engine {
     sorted.forEach((obj) => this.renderObject(obj, this.currentFrameIdx, 1));
     this.drawBones();
     if (this.currentStroke.length) this.drawCurrentStroke();
+    if (this.selectedGroupId) this.drawGroupSelection(this.selectedGroupId);
     if (this.selectedId) this.drawSelection(this.selectedId);
     if (this.tool === "deform" && this.selectedId) this.drawDeformPoints(this.selectedId);
+    if (this.pendingBoneConfirm) this.drawConfirmedPendingBone();
     if (this.pendingBone) this.drawPendingBone();
   }
 
@@ -831,25 +1069,45 @@ export class Engine {
   }
 
   private drawBones() {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.showBones) return;
     const ctx = this.ctx;
     ctx.save();
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = "#38bdf8";
-    ctx.fillStyle = "#0ea5e9";
     for (const bone of this.bones) {
+      if (!bone.visible) continue;
       const parent = this.localToScreen(bone.parentId, bone.parentAnchor);
       const child = this.localToScreen(bone.childId, bone.childAnchor);
       if (!parent || !child) continue;
+      ctx.lineWidth = bone.id === this.selectedBoneId ? bone.thickness + 2 : bone.thickness;
+      ctx.strokeStyle = bone.allowDetach ? "#f59e0b" : bone.color;
+      ctx.fillStyle = bone.id === this.selectedBoneId ? "#facc15" : bone.color;
       ctx.beginPath();
       ctx.moveTo(parent.x, parent.y);
       ctx.lineTo(child.x, child.y);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(parent.x, parent.y, 8, 0, Math.PI * 2);
-      ctx.arc(child.x, child.y, 8, 0, Math.PI * 2);
+      ctx.arc(parent.x, parent.y, 10, 0, Math.PI * 2);
+      ctx.arc(child.x, child.y, 10, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.restore();
+  }
+
+  private drawConfirmedPendingBone() {
+    if (!this.ctx || !this.pendingBoneConfirm) return;
+    const ctx = this.ctx;
+    const pending = this.pendingBoneConfirm;
+    ctx.save();
+    ctx.strokeStyle = "#2196f3";
+    ctx.fillStyle = "#2196f3";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(pending.startWorld.x, pending.startWorld.y);
+    ctx.lineTo(pending.endWorld.x, pending.endWorld.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(pending.startWorld.x, pending.startWorld.y, 10, 0, Math.PI * 2);
+    ctx.arc(pending.endWorld.x, pending.endWorld.y, 10, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -898,6 +1156,35 @@ export class Engine {
       ctx.arc(pivot.x, pivot.y, 7, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.restore();
+  }
+
+  private drawGroupSelection(id: string) {
+    if (!this.ctx) return;
+    const group = this.rigGroups.find((item) => item.id === id);
+    if (!group) return;
+    const points: Point[] = [];
+    for (const memberId of group.memberIds) {
+      if (!this.objects[memberId]) continue;
+      const b = this.getLocalBounds(this.objects[memberId]);
+      [
+        { x: b.minX, y: b.minY },
+        { x: b.maxX, y: b.minY },
+        { x: b.maxX, y: b.maxY },
+        { x: b.minX, y: b.maxY },
+      ].forEach((point) => {
+        const screen = this.localToScreen(memberId, point);
+        if (screen) points.push(screen);
+      });
+    }
+    if (!points.length) return;
+    const b = boundsOf(points);
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = "#2196f3";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([12, 6]);
+    ctx.strokeRect(b.minX - 24, b.minY - 24, b.width + 48, b.height + 48);
     ctx.restore();
   }
 
@@ -963,6 +1250,47 @@ export class Engine {
       .filter((obj) => obj.id !== excludeId)
       .sort((a, b) => b.zIndex - a.zIndex);
     return sorted.find((obj) => this.hitTestObject(obj.id, pt))?.id ?? null;
+  }
+
+  private getGroupRootIds(group: RigGroup) {
+    const members = new Set(group.memberIds);
+    return group.memberIds.filter((id) => this.objects[id] && !members.has(this.getParentId(id) ?? ""));
+  }
+
+  private hasLockedIncomingBone(id: string) {
+    return this.bones.some((bone) => bone.childId === id && !bone.allowDetach);
+  }
+
+  private refreshAllowedDetachDistances(id: string) {
+    for (const bone of this.getConnectedBones(id)) {
+      if (bone.allowDetach) bone.lockedDistance = this.getBoneCurrentDistance(bone.id);
+    }
+  }
+
+  private enforceBoneConstraints() {
+    for (let iteration = 0; iteration < 4; iteration++) {
+      for (const bone of this.bones) {
+        if (bone.allowDetach) continue;
+        const parentWorld = this.localToScreen(bone.parentId, bone.parentAnchor);
+        const childWorld = this.localToScreen(bone.childId, bone.childAnchor);
+        if (!parentWorld || !childWorld) continue;
+        const currentDistance = dist(parentWorld, childWorld);
+        if (Math.abs(currentDistance - bone.lockedDistance) <= 0.05) continue;
+        const length = currentDistance || 1;
+        const unitX = (childWorld.x - parentWorld.x) / length;
+        const unitY = (childWorld.y - parentWorld.y) / length;
+        const desiredWorld = {
+          x: parentWorld.x + unitX * bone.lockedDistance,
+          y: parentWorld.y + unitY * bone.lockedDistance,
+        };
+        const parentMatrix = this.getEffectiveMatrix(bone.parentId, this.currentFrameIdx);
+        const desiredParentLocal = new DOMPoint(desiredWorld.x, desiredWorld.y).matrixTransform(parentMatrix.inverse());
+        const childTransform = this.getFrameTransform(bone.childId);
+        const anchorBase = new DOMPoint(bone.childAnchor.x, bone.childAnchor.y).matrixTransform(this.localMatrixWithoutTranslation(childTransform));
+        childTransform.x = desiredParentLocal.x - anchorBase.x;
+        childTransform.y = desiredParentLocal.y - anchorBase.y;
+      }
+    }
   }
 
   private nearestObjectToPoint(pt: Point, excludeId?: string, maxDistance = 90) {
